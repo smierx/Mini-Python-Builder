@@ -224,5 +224,6 @@ public class ManualTest {
         java.nio.file.Path fileOutput =
                 java.nio.file.FileSystems.getDefault().getPath("build/compilerOutput/ManualTest/");
         generateProgram(fileOutput);
+        System.out.println("Done");
     }
 }

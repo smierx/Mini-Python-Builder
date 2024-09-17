@@ -16,6 +16,9 @@ processResources {
 }
 
 dependencies {
+    // JQF core dependency
+    implementation 'edu.berkeley.cs.jqf:jqf-fuzz:2.0'
+
     // cf. https://docs.gradle.org/current/userguide/platforms.html#sub:bom_import
     testImplementation platform('org.junit:junit-bom:5.11.0')
 
@@ -26,10 +29,19 @@ dependencies {
 
 application {
     // Define the main class for the application
-    mainClass = 'CBuilder.ManualTest'
+    mainClass = 'CBuilder.CompilerFuzzTest'
 }
 
 tasks.named('test', Test) {
+    project.logger.debug("bla")
     // cf. https://docs.gradle.org/current/userguide/java_testing.html#using_junit5
-    useJUnitPlatform()
+    //useJUnitPlatform()
 }
+
+tasks.named('test', Test) {
+    project.logger.lifecycle("test")
+    workingDir rootProject.getProjectDir().getAbsolutePath()
+    project.logger.lifecycle(workingDir.toString())
+    commandLine "mvn", "jqf:fuzz -Dclass=examples.CompilerTest -Dmethod=testWithGenerator -Dtime=5m"
+}
+
