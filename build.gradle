@@ -33,7 +33,7 @@ application {
 }
 
 tasks.named('test', Test) {
-    project.logger.debug("bla")
+    project.logger.debug("test")
     // cf. https://docs.gradle.org/current/userguide/java_testing.html#using_junit5
     //useJUnitPlatform()
 }

@@ -2,64 +2,98 @@ package CBuilder;
 import com.pholser.junit.quickcheck.random.SourceOfRandomness;
 import edu.berkeley.cs.jqf.fuzz.Fuzz;
 import edu.berkeley.cs.jqf.fuzz.JQF;
+import org.junit.Before;
 import org.junit.runner.RunWith;
 import com.pholser.junit.quickcheck.From;
-
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Stream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-
+import static org.junit.Assert.*;
 @RunWith(JQF.class)
 public class CompilerFuzzTest {
-    @Fuzz
-    public void testWithGenerator(@From(CBuilderGenerator.class) ProgramBuilder code)  {
-        //
-        //System.out.println(code.hashCode());
-        //TODO: Check if Ordner erstellt wurde sonst fail
-        File folder = new File("./build/compilerOutput/Fuzzing/"+code.hashCode());
+
+    private static String BASE_PATH = "./build/compilerOutput/Fuzzing/";
+
+    @Before
+    public void initCompiler() {
+
+    }
+
+    private void compile(ProgramBuilder code) {
+        File folder = new File(BASE_PATH + code.hashCode());
+        //Ordner wurde erstellt
+        assertTrue(String.valueOf(code.hashCode()),folder.exists());
         File[] listOfFiles = folder.listFiles();
         List<String> dirs = new ArrayList<>();
         List<String> files = new ArrayList<>();
-        if(listOfFiles != null) {
-            for (int i = 0; i < listOfFiles.length; i++) {
-                if (listOfFiles[i].isFile()) {
-                    files.add(listOfFiles[i].getName());
-                } else if (listOfFiles[i].isDirectory()) {
-                    dirs.add(listOfFiles[i].getName());
-                }
+        //Ordner hat Inhalt
+        assertTrue(listOfFiles.length > 0);
+        for (File listOfFile : listOfFiles) {
+            if (listOfFile.isFile()) {
+                files.add(listOfFile.getName());
+            } else if (listOfFile.isDirectory()) {
+                dirs.add(listOfFile.getName());
             }
-        } else {
-            // Ordner wurde nicht erstellt
-            System.exit(0);
         }
-        if (
-            files.contains("Makefile") & files.contains(".gitignore") & files.contains("Doxyfile") &
-                dirs.contains("test") & dirs.contains("include") & dirs.contains("src")
-        ) {
+        //Template kopieren hat funktioniert
+        assertTrue(String.valueOf(code.hashCode()),files.contains("Makefile"));
+        assertTrue(String.valueOf(code.hashCode()),files.contains(".gitignore"));
+        assertTrue(String.valueOf(code.hashCode()),files.contains("Doxyfile"));
+        assertTrue(String.valueOf(code.hashCode()),dirs.contains("test"));
+        assertTrue(String.valueOf(code.hashCode()),dirs.contains("include"));
+        assertTrue(String.valueOf(code.hashCode()),dirs.contains("src"));
+        if (System.getProperty("fuzzer.compile")=="1") {
+            int exitcode = -1;
             try {
                 ProcessBuilder processBuilder = new ProcessBuilder();
                 processBuilder.directory(folder);
-                processBuilder.command("make");//"-C", "./build/compilerOutput/Fuzzing" + code.hashCode()
+                processBuilder.command("make");
+
+
                 Process process = processBuilder.start();
-                //Check if exit code ist richtig!
-                int exitcode = process.waitFor();
-                System.out.println(exitcode);
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
+                exitcode = process.waitFor();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        } else {
-            // Ordner wurde nicht richtig erstellt
-            System.exit(0);
-        }
-        //TODO: Check if program erstellt wurde sonst fail
-        //TODO: Check if ----FuzzerEnd letzte Zeile sonst fail
 
+            //Compile hat funktioniert
+            assertEquals(String.valueOf(code.hashCode()),0, exitcode);
+            List<String> lines = new ArrayList<String>();
+            try {
+                ProcessBuilder processBuilder = new ProcessBuilder();
+                processBuilder.directory(folder);
+                processBuilder.command("./bin/program");
+                Process process = processBuilder.start();
+                exitcode = process.waitFor();
+                BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    lines.add(line);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            assertFalse(String.valueOf(code.hashCode()),lines.isEmpty());
+            assertEquals(String.valueOf(code.hashCode()),0, exitcode);
+            assertTrue(String.valueOf(code.hashCode()),lines.getFirst().equals("----------------FUZZING-Start"));
+            assertTrue(String.valueOf(code.hashCode()),lines.getLast().equals("----------------FUZZING-End"));
+        }
+    }
+
+    @Fuzz
+    public void testWithGenerator(@From(CBuilderGenerator.class) ProgramBuilder code)  {
+        compile(code);
     }
 }
